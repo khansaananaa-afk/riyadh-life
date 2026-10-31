@@ -1,0 +1,102 @@
+{
+  "type": "FeatureCollection",
+  "name": "riyadh_landmarks_reference",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Kingdom Centre",
+        "name_ar": "برج المملكة",
+        "category": "landmark",
+        "coordinate_quality": "reference_point",
+        "source": "Mapcarta / OpenStreetMap-derived",
+        "source_url": "https://mapcarta.com/W264745922"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          46.67441,
+          24.71135
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Al Faisaliah Tower",
+        "name_ar": "برج الفيصلية",
+        "category": "landmark",
+        "coordinate_quality": "approximate_reference_point",
+        "source": "Published coordinates",
+        "source_url": "https://en.wikipedia.org/wiki/Al_Faisaliah_Tower"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          46.68528,
+          24.69028
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "KAFD World Trade Center",
+        "name_ar": "مركز التجارة العالمي - كافد",
+        "category": "landmark",
+        "coordinate_quality": "approximate_reference_point",
+        "source": "Published coordinates",
+        "source_url": "https://en.wikipedia.org/wiki/KAFD_World_Trade_Center"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          46.6406,
+          24.763
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "At-Turaif District",
+        "name_ar": "حي الطريف",
+        "category": "heritage",
+        "coordinate_quality": "UNESCO_reference_point",
+        "source": "UNESCO nomination document",
+        "source_url": "https://whc.unesco.org/document/168966"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          46.5724667,
+          24.7341333
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Boulevard Riyadh City - approximate central reference",
+        "name_ar": "بوليفارد رياض سيتي",
+        "category": "entertainment",
+        "coordinate_quality": "approximate_reference_point",
+        "source": "Published location reference",
+        "source_url": "https://anb.com.sa/documents/55607/0/anb%2BAll%2BActive%2BLocations2fff.pdf/d8bb8190-7674-8cc1-d151-3be28353a42d?t=1756906026169"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          46.6102,
+          24.7177
+        ]
+      }
+    }
+  ]
+}

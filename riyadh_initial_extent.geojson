@@ -1,0 +1,41 @@
+{
+  "type": "FeatureCollection",
+  "name": "riyadh_initial_download_extent_NOT_official_boundary",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Riyadh initial OSM download extent",
+        "status": "approximate_working_extent_only",
+        "warning": "This rectangle is NOT an official Riyadh municipal boundary. Use official GIS boundary data where legally downloadable, then clip datasets to it. This extent is only a broad initial extraction window."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              46.3,
+              24.3
+            ],
+            [
+              47.2,
+              24.3
+            ],
+            [
+              47.2,
+              25.1
+            ],
+            [
+              46.3,
+              25.1
+            ],
+            [
+              46.3,
+              24.3
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

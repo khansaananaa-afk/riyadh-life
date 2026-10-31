@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RIYADH LIFE</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark;--p:rgba(18,18,22,.78);--f:#f3efe6;--a:#d9a441}
+html,body{height:100%;margin:0;background:#cfe3f2;font-family:system-ui,"Segoe UI",Tahoma,sans-serif;color:var(--f);overflow:hidden;touch-action:none;user-select:none}
+canvas#c{position:fixed;inset:0;width:100%;height:100%}
+.p{background:var(--p);border-radius:10px;padding:8px 10px;font-size:12px;line-height:1.5}
+#hud{position:fixed;top:8px;left:8px;right:8px;display:flex;justify-content:space-between;pointer-events:none;gap:8px}
+#mm{width:120px;height:120px;border-radius:10px;background:#2b2a26;pointer-events:auto}
+#mm.big{position:fixed;inset:10% 15%;width:70%;height:80%}
+#warn{max-width:48%;pointer-events:auto}
+.btn{position:fixed;width:58px;height:58px;border-radius:50%;background:var(--p);border:2px solid var(--a);color:var(--f);font-size:12px;display:flex;align-items:center;justify-content:center;touch-action:none}
+#stick{position:fixed;left:24px;bottom:calc(24px + env(safe-area-inset-bottom,0px));width:110px;height:110px;border-radius:50%;background:var(--p)}
+#knob{position:absolute;left:35px;top:35px;width:40px;height:40px;border-radius:50%;background:var(--a)}
+#prompt{position:fixed;bottom:34%;left:0;right:0;text-align:center;font-size:14px;pointer-events:none}
+.ov{position:fixed;inset:0;background:rgba(10,10,14,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:12px;overflow:auto;text-align:center}
+.ov button,.ov label{background:var(--a);color:#111;border:0;border-radius:8px;padding:9px 16px;font-size:14px}
+.hide{display:none!important}
+</style></head><body>
+<canvas id="c"></canvas>
+<div id="hud"><div id="warn" class="p"></div><canvas id="mm" width="240" height="240"></canvas></div>
+<div id="prompt"></div>
+<div id="stick"><div id="knob"></div></div>
+<div class="btn" id="bGas" style="right:24px;bottom:calc(24px + env(safe-area-inset-bottom,0px))">غاز/ركض</div>
+<div class="btn" id="bBrk" style="right:92px;bottom:calc(24px + env(safe-area-inset-bottom,0px))">فرامل</div>
+<div class="btn" id="bHb" style="right:24px;bottom:calc(92px + env(safe-area-inset-bottom,0px))">يد</div>
+<div class="btn" id="bAct" style="right:92px;bottom:calc(92px + env(safe-area-inset-bottom,0px))">تفاعل</div>
+<div class="btn" id="bCam" style="right:160px;bottom:calc(24px + env(safe-area-inset-bottom,0px))">كاميرا</div>
+<div class="btn" id="bMap" style="left:24px;bottom:calc(150px + env(safe-area-inset-bottom,0px))">خريطة</div>
+<div class="btn" id="bMenu" style="left:92px;bottom:calc(150px + env(safe-area-inset-bottom,0px))">قائمة</div>
+
+<div id="start" class="ov">
+<h1 style="margin:0">RIYADH LIFE</h1>
+<div style="font-size:13px;max-width:420px">الأساس الجغرافي (المرحلة 1 + بداية المرحلة 2). المعالم بإحداثيات مرجعية حقيقية، والطرق والمباني تُحمَّل من ملفات OSM الخاصة بك.</div>
+<div>الشخصية: <button id="gM">ذكر</button> <button id="gF">أنثى</button></div>
+<label>لون الملابس <input type="color" id="col" value="#f2efe8"></label>
+</div>
+
+<div id="menu" class="ov hide">
+<h2 style="margin:0">القائمة</h2>
+<label>تحميل ملفات GeoJSON (roads / buildings)<input type="file" id="files" accept=".geojson,.json" multiple hidden></label>
+<div id="tp" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center"></div>
+<div class="p" style="max-width:440px;text-align:right">
+<b>غير منجز بعد:</b> مسار GPS على الطرق، حدود الأحياء الرسمية، تضاريس DEM، حركة مرور ومشاة، وظائف واقتصاد، طقس ودورة نهار/ليل، أصوات.<br>
+<b>البيانات:</b> © OpenStreetMap contributors (ODbL) — openstreetmap.org/copyright. المباني ثنائية الأبعاد المبسطة بلا أسطح ولا ارتفاعات حقيقية ما لم تكن في الوسوم.
+</div>
+<button id="close">متابعة</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ---------- Geo: WGS84 lon/lat -> local metres (tangent plane at Kingdom Centre) ----------
+const LM=[
+["Kingdom Centre","برج المملكة",46.67441,24.71135,302,"k"],
+["Al Faisaliah Tower","برج الفيصلية",46.68528,24.69028,267,"f"],
+["KAFD World Trade Center","مركز كافد",46.6406,24.763,385,"w"],
+["At-Turaif","حي الطريف",46.5724667,24.7341333,18,"t"],
+["Boulevard Riyadh City","بوليفارد رياض سيتي",46.6102,24.7177,22,"b"]];
+const O={lon:46.67441,lat:24.71135};
+const KX=111320*Math.cos(O.lat*Math.PI/180),KZ=110574;
+const proj=(lon,lat)=>[(lon-O.lon)*KX,-(lat-O.lat)*KZ];
+
+// ---------- Save (IndexedDB) ----------
+const dbp=new Promise(r=>{try{const q=indexedDB.open("riyadhlife",1);q.onupgradeneeded=()=>q.result.createObjectStore("s");q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)}catch(e){r(null)}});
+async function sv(k,v){const d=await dbp;if(!d)return;try{d.transaction("s","readwrite").objectStore("s").put(v,k)}catch(e){}}
+async function ld(k){const d=await dbp;if(!d)return null;return new Promise(r=>{try{const q=d.transaction("s").objectStore("s").get(k);q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)}catch(e){r(null)}})}
+
+// ---------- Scene ----------
+const $=id=>document.getElementById(id);
+const R=new THREE.WebGLRenderer({canvas:$("c"),antialias:false});
+R.setPixelRatio(Math.min(devicePixelRatio,2));
+const S=new THREE.Scene();S.background=new THREE.Color(0xcfe3f2);S.fog=new THREE.Fog(0xcfe3f2,500,14000);
+const cam=new THREE.PerspectiveCamera(65,1,0.3,40000);
+function rs(){R.setSize(innerWidth,innerHeight,false);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}addEventListener("resize",rs);rs();
+S.add(new THREE.HemisphereLight(0xffffff,0xb59a6a,0.9));
+const sun=new THREE.DirectionalLight(0xfff1d6,0.8);sun.position.set(300,500,200);S.add(sun);
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(90000,90000),new THREE.MeshLambertMaterial({color:0xd8c39a}));
+ground.rotation.x=-Math.PI/2;S.add(ground);
+const grid=new THREE.GridHelper(40000,400,0xb8a577,0xc9b685);grid.position.y=0.05;S.add(grid);
+
+function label(txt,w){const c=document.createElement("canvas");c.width=512;c.height=96;const g=c.getContext("2d");g.fillStyle="rgba(18,18,22,.75)";g.fillRect(0,0,512,96);g.fillStyle="#fff";g.font="bold 44px sans-serif";g.textAlign="center";g.textBaseline="middle";g.fillText(txt,256,50);
+const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),fog:false}));s.scale.set(w,w*96/512,1);return s}
+const mat=(c)=>new THREE.MeshLambertMaterial({color:c});
+const LMpos=[];
+LM.forEach(([n,ar,lon,lat,h,t])=>{
+ const [x,z]=proj(lon,lat);LMpos.push([x,z,ar]);const g=new THREE.Group();g.position.set(x,0,z);
+ if(t==="k"){const b=new THREE.Mesh(new THREE.BoxGeometry(50,h-60,40),mat(0x9fb6c4));b.position.y=(h-60)/2;g.add(b);const top=new THREE.Mesh(new THREE.BoxGeometry(50,60,40),mat(0x7d95a5));top.position.y=h-30;g.add(top)}
+ else if(t==="f"){const b=new THREE.Mesh(new THREE.BoxGeometry(40,h-30,40),mat(0xaab4bb));b.position.y=(h-30)/2;g.add(b);const s=new THREE.Mesh(new THREE.SphereGeometry(14,12,10),mat(0x8fa6b8));s.position.y=h-10;g.add(s)}
+ else if(t==="w"){const b=new THREE.Mesh(new THREE.BoxGeometry(45,h,45),mat(0x8aa0b0));b.position.y=h/2;g.add(b)}
+ else{for(let i=0;i<9;i++){const b=new THREE.Mesh(new THREE.BoxGeometry(18+i%3*6,h*(0.5+i%2*0.5),18),mat(t==="t"?0xc8a574:0xe3d2b0));b.position.set((i%3-1)*30,b.geometry.parameters.height/2,(Math.floor(i/3)-1)*30);g.add(b)}}
+ const l=label(ar+" · "+n,Math.max(160,h*1.2));l.position.y=h+25;g.add(l);S.add(g)});
+
+// ---------- Player / car ----------
+const st={mode:"foot",x:0,z:60,h:0,v:0,cam:0,gender:"M"};
+const car=new THREE.Group();{const b=new THREE.Mesh(new THREE.BoxGeometry(1.9,0.9,4.4),mat(0x2e5e8c));b.position.y=0.7;car.add(b);const c=new THREE.Mesh(new THREE.BoxGeometry(1.7,0.7,2.2),mat(0x9ec4de));c.position.set(0,1.4,-0.2);car.add(c)}
+const carS={x:30,z:70,h:0.6};S.add(car);
+const ped=new THREE.Group();const body=new THREE.Mesh(new THREE.CylinderGeometry(0.32,0.38,1.2,10),mat(0xf2efe8));body.position.y=0.8;ped.add(body);
+const head=new THREE.Mesh(new THREE.SphereGeometry(0.22,10,8),mat(0xb88a62));head.position.y=1.65;ped.add(head);S.add(ped);
+$("gM").onclick=()=>begin("M");$("gF").onclick=()=>begin("F");
+function begin(g){st.gender=g;const c=g==="F"&&$("col").value==="#f2efe8"?"#151515":$("col").value;body.material.color.set(c);$("start").classList.add("hide");
+ try{screen.orientation.lock("landscape").catch(()=>{})}catch(e){}try{document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{})}catch(e){}}
+ld("p").then(p=>{if(p&&p.v===1){st.x=p.x;st.z=p.z;st.h=p.h}});
+setInterval(()=>sv("p",{v:1,x:st.x,z:st.z,h:st.h,mode:st.mode}),5000);
+
+// ---------- Input ----------
+const K={};addEventListener("keydown",e=>{K[e.code]=1;if(e.code==="KeyF"||e.code==="KeyE")act();if(e.code==="KeyC")st.cam^=1;if(e.code==="KeyM")$("mm").classList.toggle("big");if(e.code==="Escape")menu()});addEventListener("keyup",e=>K[e.code]=0);
+const T={x:0,y:0,gas:0,brk:0,hb:0};
+const stick=$("stick"),knob=$("knob");let sid=null;
+function sm(e){const r=stick.getBoundingClientRect();let dx=(e.clientX-r.left-55)/45,dy=(e.clientY-r.top-55)/45;const m=Math.hypot(dx,dy);if(m>1){dx/=m;dy/=m}T.x=dx;T.y=-dy;knob.style.left=35+dx*35+"px";knob.style.top=35+dy*35+"px"}
+stick.onpointerdown=e=>{sid=e.pointerId;stick.setPointerCapture(sid);sm(e)};stick.onpointermove=e=>{if(e.pointerId===sid)sm(e)};
+stick.onpointerup=stick.onpointercancel=()=>{sid=null;T.x=T.y=0;knob.style.left=knob.style.top="35px"};
+const hold=(id,k)=>{const b=$(id);b.onpointerdown=()=>T[k]=1;b.onpointerup=b.onpointercancel=b.onpointerleave=()=>T[k]=0};hold("bGas","gas");hold("bBrk","brk");hold("bHb","hb");
+$("bAct").onpointerdown=act;$("bCam").onpointerdown=()=>st.cam^=1;$("bMap").onpointerdown=()=>$("mm").classList.toggle("big");$("bMenu").onpointerdown=menu;
+function menu(){$("menu").classList.toggle("hide")}$("close").onclick=menu;
+function act(){if($("start").offsetParent)return;
+ if(st.mode==="foot"){if(Math.hypot(st.x-carS.x,st.z-carS.z)<7){st.mode="car";st.v=0;st.h=carS.h;st.x=carS.x;st.z=carS.z}}
+ else if(Math.abs(st.v)<3){st.mode="foot";st.x=carS.x+Math.cos(carS.h)*3;st.z=carS.z-Math.sin(carS.h)*3;st.v=0}}
+const tp=$("tp");LMpos.forEach(([x,z,ar])=>{const b=document.createElement("button");b.textContent="انتقال: "+ar;b.onclick=()=>{st.mode="foot";st.x=x+60;st.z=z+60;menu()};tp.appendChild(b)});
+$("menu").querySelector("label").onclick=()=>$("files").click();
+
+// ---------- Data loading (user-supplied OSM GeoJSON) ----------
+const segs=[];let nRoads=0,nBld=0,roadMesh=null,bldMesh=null;
+function loadFC(fc){const bp=[],rp=[],rc=[];const cx=st.x,cz=st.z;
+ for(const f of fc.features||[]){const p=f.properties||{},g=f.geometry;if(!g)continue;
+  if(p.highway&&g.type==="LineString"){const w=/motorway|trunk/.test(p.highway)?[0.9,0.7,0.3]:/primary|secondary/.test(p.highway)?[0.95,0.95,0.9]:[0.55,0.55,0.55];nRoads++;
+   for(let i=1;i<g.coordinates.length;i++){const a=proj(...g.coordinates[i-1]),b=proj(...g.coordinates[i]);rp.push(a[0],0.15,a[1],b[0],0.15,b[1]);rc.push(...w,...w);segs.push(a[0],a[1],b[0],b[1])}}
+  else if(p.building&&g.type==="Polygon"&&nBld<120000){const r=g.coordinates[0].map(c=>proj(c[0],c[1]));if(Math.hypot(r[0][0]-cx,r[0][1]-cz)>7000)continue;
+   const h=parseFloat(p.height)||(parseFloat(p["building:levels"])||2)*3.2;nBld++;
+   for(let i=1;i<r.length;i++){const[a,b]=[r[i-1],r[i]];bp.push(a[0],0,a[1],b[0],0,b[1],b[0],h,b[1],a[0],0,a[1],b[0],h,b[1],a[0],h,a[1])}}}
+ if(rp.length){const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.Float32BufferAttribute(rp,3));g.setAttribute("color",new THREE.Float32BufferAttribute(rc,3));S.add(new THREE.LineSegments(g,new THREE.LineBasicMaterial({vertexColors:true})))}
+ if(bp.length){const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.Float32BufferAttribute(bp,3));g.computeVertexNormals();S.add(new THREE.Mesh(g,new THREE.MeshLambertMaterial({color:0xe7dcc4,side:THREE.DoubleSide})))}
+ warn()}
+$("files").onchange=async e=>{for(const f of e.target.files){try{loadFC(JSON.parse(await f.text()))}catch(x){alert("ملف غير صالح: "+f.name)}}};
+function warn(){$("warn").innerHTML=(nRoads?"طرق OSM: "+nRoads:"<b>⚠ لا توجد بيانات طرق</b> — لن أرسم طرقاً وهمية. شغّل download_riyadh_osm.py ثم حمّل riyadh_roads.geojson من القائمة.")+"<br>"+(nBld?"مباني OSM: "+nBld:"⚠ لا مباني محمّلة")+"<br>تضاريس: مسطحة (لا DEM) · معالم: نماذج تقريبية بإحداثيات مرجعية"}
+warn();
+// Auto-load OSM files if present next to the page (GitHub Pages / local server)
+["riyadh_roads","riyadh_buildings"].forEach(n=>fetch("data/osm_downloads/"+n+".geojson").then(r=>r.ok?r.json():null).then(j=>j&&loadFC(j)).catch(()=>{}));
+
+// ---------- Minimap ----------
+const mm=$("mm"),mg=mm.getContext("2d");
+function minimap(){const W=mm.width,H=mm.height,sc=$("mm").classList.contains("big")?0.02:0.1;mg.fillStyle="#2b2a26";mg.fillRect(0,0,W,H);
+ const X=x=>W/2+(x-st.x)*sc,Z=z=>H/2+(z-st.z)*sc;
+ mg.strokeStyle="#bbb";mg.lineWidth=1;mg.beginPath();const lim=W/2/sc;
+ for(let i=0;i<segs.length;i+=4){if(Math.abs(segs[i]-st.x)<lim&&Math.abs(segs[i+1]-st.z)<lim){mg.moveTo(X(segs[i]),Z(segs[i+1]));mg.lineTo(X(segs[i+2]),Z(segs[i+3]))}}mg.stroke();
+ mg.fillStyle="#d9a441";mg.font="18px sans-serif";LMpos.forEach(([x,z,ar])=>{const px=X(x),pz=Z(z);if(px>0&&px<W&&pz>0&&pz<H){mg.fillRect(px-4,pz-4,8,8);mg.fillText(ar,px+6,pz)}else{const a=Math.atan2(z-st.z,x-st.x);mg.fillRect(W/2+Math.cos(a)*(W/2-6)-3,H/2+Math.sin(a)*(H/2-6)-3,6,6)}});
+ mg.fillStyle="#fff";mg.beginPath();mg.arc(W/2,H/2,6,0,7);mg.fill();mg.strokeStyle="#f55";mg.beginPath();mg.moveTo(W/2,H/2);mg.lineTo(W/2+Math.sin(st.h)*16,H/2+Math.cos(st.h)*16);mg.stroke()}
+
+// ---------- Loop ----------
+const cl=(v,a,b)=>Math.max(a,Math.min(b,v));let last=performance.now(),mt=0;
+function loop(t){requestAnimationFrame(loop);const dt=Math.min((t-last)/1000,0.05);last=t;
+ const ax=cl((K.KeyD||K.ArrowRight?1:0)-(K.KeyA||K.ArrowLeft?1:0)+T.x,-1,1);
+ let ay=cl((K.KeyW||K.ArrowUp?1:0)-(K.KeyS||K.ArrowDown?1:0)+T.y,-1,1);
+ const gas=K.ShiftLeft||T.gas,hb=K.Space||T.hb;
+ if(st.mode==="car"){let a=Math.max(ay,0)*16+(T.gas?16:0);const rev=ay<0||T.brk;
+  if(rev){if(st.v>0.5)a=-32;else a=-8}
+  if(hb)a-=Math.sign(st.v)*30;
+  st.v+=a*dt;st.v-=st.v*0.12*dt+Math.sign(st.v)*0.4*dt;st.v=cl(st.v,-9,48);if(Math.abs(st.v)<0.1&&!a)st.v=0;
+  st.h-=ax*1.6*cl(st.v/6,-1,1)/(1+Math.abs(st.v)/22)*dt*(hb?1.8:1);
+  st.x+=Math.sin(st.h)*st.v*dt;st.z+=Math.cos(st.h)*st.v*dt;Object.assign(carS,{x:st.x,z:st.z,h:st.h})}
+ else{st.h-=ax*2.2*dt;const sp=ay*(gas?7:3.5);st.x+=Math.sin(st.h)*sp*dt;st.z+=Math.cos(st.h)*sp*dt}
+ car.position.set(carS.x,0,carS.z);car.rotation.y=carS.h;ped.visible=st.mode==="foot";ped.position.set(st.x,0,st.z);ped.rotation.y=st.h;
+ const fx=Math.sin(st.h),fz=Math.cos(st.h);
+ if(st.mode==="car"&&st.cam){cam.position.set(st.x+fx*0.3,1.35,st.z+fz*0.3);cam.lookAt(st.x+fx*20,1.2,st.z+fz*20)}
+ else if(st.mode==="foot"&&st.cam){cam.position.set(st.x,1.7,st.z);cam.lookAt(st.x+fx*10,1.6,st.z+fz*10)}
+ else{const d=st.mode==="car"?9:4.5,hh=st.mode==="car"?3.6:2.2;cam.position.set(st.x-fx*d,hh,st.z-fz*d);cam.lookAt(st.x+fx*4,1.2,st.z+fz*4)}
+ const near=st.mode==="foot"&&Math.hypot(st.x-carS.x,st.z-carS.z)<7;
+ $("prompt").textContent=near?"اضغط تفاعل (F) لركوب السيارة التجريبية":st.mode==="car"?Math.round(Math.abs(st.v)*3.6)+" كم/س":"";
+ mt+=dt;if(mt>0.15){mt=0;minimap()}
+ R.render(S,cam)}
+requestAnimationFrame(loop);
+</script></body></html>
